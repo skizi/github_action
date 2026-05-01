@@ -7,6 +7,29 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    .nav {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.875rem;
+    }
+    .nav a {
+      color: var(--muted);
+      text-decoration: none;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      transition: all 0.15s;
+    }
+    .nav a:hover { color: var(--text); border-color: var(--border); }
+    .nav a.active {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: rgba(88,166,255,0.08);
+    }
+
     :root {
       --bg: #0d1117;
       --surface: #161b22;
@@ -106,6 +129,10 @@
 </head>
 <body>
 <div class="container">
+  <nav class="nav">
+    <a href="index.html" class="active">プロフィール</a>
+    <a href="prices.html">価格トラッカー</a>
+  </nav>
   <div id="app" class="loading">読み込み中...</div>
 </div>
 <script>
