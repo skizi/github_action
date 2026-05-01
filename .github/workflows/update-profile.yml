@@ -1,15 +1,27 @@
-name: Update Profile Data
+name: Deploy Profile to GitHub Pages
 
 on:
   schedule:
     - cron: '0 0 * * *'  # 毎日 UTC 0:00
   workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
-  update:
+  deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - uses: actions/checkout@v4
@@ -22,7 +34,6 @@ jobs:
             const username = 'skizi';
 
             const { data: user } = await github.rest.users.getByUsername({ username });
-
             const { data: repos } = await github.rest.repos.listForUser({
               username,
               sort: 'updated',
@@ -54,16 +65,16 @@ jobs:
             };
 
             fs.writeFileSync('data/profile.json', JSON.stringify(profile, null, 2));
-            console.log('Profile data written to data/profile.json');
+            console.log('Profile data written.');
 
-      - name: Commit and push
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/profile.json
-          if git diff --staged --quiet; then
-            echo "変更なし、スキップ"
-          else
-            git commit -m "chore: update profile data [skip ci]"
-            git push
-          fi
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
