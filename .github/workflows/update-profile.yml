@@ -15,45 +15,46 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Fetch GitHub profile data
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          USERNAME: skizi
-        run: |
-          USER=$(curl -fsSL \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/users/$USERNAME")
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const username = 'skizi';
 
-          REPOS=$(curl -fsSL \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/users/$USERNAME/repos?sort=updated&per_page=6&type=public")
+            const { data: user } = await github.rest.users.getByUsername({ username });
 
-          jq -n \
-            --argjson u "$USER" \
-            --argjson r "$REPOS" \
-            '{
-              login:        $u.login,
-              name:         $u.name,
-              bio:          $u.bio,
-              avatar_url:   $u.avatar_url,
-              location:     $u.location,
-              blog:         $u.blog,
-              html_url:     $u.html_url,
-              public_repos: $u.public_repos,
-              followers:    $u.followers,
-              following:    $u.following,
-              repos: [$r[] | {
-                name:             .name,
-                description:      .description,
-                html_url:         .html_url,
-                language:         .language,
-                stargazers_count: .stargazers_count,
-                forks_count:      .forks_count,
-                updated_at:       .updated_at
-              }],
-              updated_at: (now | strftime("%Y-%m-%dT%H:%M:%SZ"))
-            }' > data/profile.json
+            const { data: repos } = await github.rest.repos.listForUser({
+              username,
+              sort: 'updated',
+              per_page: 6,
+              type: 'public',
+            });
+
+            const profile = {
+              login:        user.login,
+              name:         user.name,
+              bio:          user.bio,
+              avatar_url:   user.avatar_url,
+              location:     user.location,
+              blog:         user.blog,
+              html_url:     user.html_url,
+              public_repos: user.public_repos,
+              followers:    user.followers,
+              following:    user.following,
+              repos: repos.map(r => ({
+                name:             r.name,
+                description:      r.description,
+                html_url:         r.html_url,
+                language:         r.language,
+                stargazers_count: r.stargazers_count,
+                forks_count:      r.forks_count,
+                updated_at:       r.updated_at,
+              })),
+              updated_at: new Date().toISOString(),
+            };
+
+            fs.writeFileSync('data/profile.json', JSON.stringify(profile, null, 2));
+            console.log('Profile data written to data/profile.json');
 
       - name: Commit and push
         run: |
