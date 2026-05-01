@@ -1,0 +1,68 @@
+name: Update Profile Data
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # 毎日 UTC 0:00
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch GitHub profile data
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          USERNAME: skizi
+        run: |
+          USER=$(curl -fsSL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/users/$USERNAME")
+
+          REPOS=$(curl -fsSL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/users/$USERNAME/repos?sort=updated&per_page=6&type=public")
+
+          jq -n \
+            --argjson u "$USER" \
+            --argjson r "$REPOS" \
+            '{
+              login:        $u.login,
+              name:         $u.name,
+              bio:          $u.bio,
+              avatar_url:   $u.avatar_url,
+              location:     $u.location,
+              blog:         $u.blog,
+              html_url:     $u.html_url,
+              public_repos: $u.public_repos,
+              followers:    $u.followers,
+              following:    $u.following,
+              repos: [$r[] | {
+                name:             .name,
+                description:      .description,
+                html_url:         .html_url,
+                language:         .language,
+                stargazers_count: .stargazers_count,
+                forks_count:      .forks_count,
+                updated_at:       .updated_at
+              }],
+              updated_at: (now | strftime("%Y-%m-%dT%H:%M:%SZ"))
+            }' > data/profile.json
+
+      - name: Commit and push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/profile.json
+          if git diff --staged --quiet; then
+            echo "変更なし、スキップ"
+          else
+            git commit -m "chore: update profile data [skip ci]"
+            git push
+          fi
